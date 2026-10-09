@@ -10,6 +10,7 @@ import {
 	isDynamicModel,
 	resetDynamicModelWarnForTests,
 	resetModelsForTests,
+	resetProviderIdAliasWarnForTests,
 	resetVersionSeparatorAliasWarnForTests,
 	resolveModel,
 	setProvider,
@@ -39,6 +40,7 @@ afterEach(() => {
 	resetModelsForTests();
 	resetDynamicModelWarnForTests();
 	resetVersionSeparatorAliasWarnForTests();
+	resetProviderIdAliasWarnForTests();
 	vi.restoreAllMocks();
 });
 
@@ -185,6 +187,25 @@ describe('version-separator aliases', () => {
 		resolveModel('test/claude-sonnet-4-6');
 		expect(warn).toHaveBeenCalledTimes(1);
 		expect(warn.mock.calls[0]?.[0]).toContain('test/claude-sonnet-4.6');
+	});
+});
+
+describe('provider ID aliases', () => {
+	it('resolves a renamed provider ID to its current provider', () => {
+		vi.spyOn(console, 'warn').mockImplementation(() => {});
+		setProvider(providerWith('azure', [catalogModel('azure', 'gpt-5.5')]));
+		const model = resolveModel('azure-openai-responses/gpt-5.5');
+		expect(model.provider).toBe('azure');
+		expect(model.id).toBe('gpt-5.5');
+	});
+
+	it('warns once per renamed provider ID', () => {
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		setProvider(providerWith('azure', [catalogModel('azure', 'gpt-5.5')]));
+		resolveModel('azure-openai-responses/gpt-5.5');
+		resolveModel('azure-openai-responses/gpt-5.5');
+		expect(warn).toHaveBeenCalledTimes(1);
+		expect(warn.mock.calls[0]?.[0]).toContain('azure-openai-responses');
 	});
 });
 

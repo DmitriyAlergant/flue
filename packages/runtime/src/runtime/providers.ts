@@ -7,6 +7,7 @@ import {
 	type MutableModels,
 	type Provider,
 } from '@earendil-works/pi-ai';
+import { canonicalProviderId } from '../provider-id-aliases.ts';
 
 // ─── Models instance ────────────────────────────────────────────────────────
 
@@ -101,7 +102,7 @@ export function resetModelsForTests(): void {
  * Register a built-in provider from its
  * `@earendil-works/pi-ai/providers/<id>` module namespace. Generated entries
  * call this: picking the factory out of the namespace keeps pi's exact export
- * names (`anthropicProvider`, `azureOpenAIResponsesProvider`, …) out of
+ * names (`anthropicProvider`, `azureProvider`, ...) out of
  * generated code, so pi's naming can't drift out from under it. Skips IDs
  * that are already registered so `app.ts` overrides win regardless of module
  * evaluation order.
@@ -141,7 +142,7 @@ export function providerTelemetryName(providerId: string): string {
 		{
 			'amazon-bedrock': 'aws.bedrock',
 			anthropic: 'anthropic',
-			'azure-openai-responses': 'azure.ai.openai',
+			azure: 'azure.ai.openai',
 			deepseek: 'deepseek',
 			google: 'gcp.gemini',
 			'google-vertex': 'gcp.vertex_ai',
@@ -207,6 +208,25 @@ export function resetDynamicModelWarnForTests(): void {
 	warnedAboutDynamicModelSynthesis = false;
 }
 
+/** One warning per requested provider ID: the renamed-away alias was used. */
+const warnedProviderIdAliases = new Set<string>();
+
+/** Reset the provider-ID alias warning guard. Test-only. */
+export function resetProviderIdAliasWarnForTests(): void {
+	warnedProviderIdAliases.clear();
+}
+
+/** Warn once that a model specifier used a provider ID pi has renamed. */
+function warnProviderIdAlias(requested: string, canonical: string): void {
+	if (warnedProviderIdAliases.has(requested)) return;
+	warnedProviderIdAliases.add(requested);
+	console.warn(
+		`[flue] Provider "${requested}" is deprecated; Pi renamed it to "${canonical}". ` +
+			`Update the specifier to "${canonical}/...". The old ID still resolves for now ` +
+			`and will be removed in a future major release.`,
+	);
+}
+
 /**
  * Zero-metadata Model literal for ids no catalog knows. Carries the
  * {@link DYNAMIC_MODEL_MARKER} so consumers can tell "free" (real zero-cost
@@ -250,8 +270,12 @@ export function resolveModel(model: string): Model<Api> {
 				`Use the "provider-id/model-id" format (e.g. "anthropic/claude-haiku-4-5").`,
 		);
 	}
-	const providerId = modelSpecifier.slice(0, slash);
+	const requestedProviderId = modelSpecifier.slice(0, slash);
+	const providerId = canonicalProviderId(requestedProviderId);
 	const modelId = modelSpecifier.slice(slash + 1);
+	if (providerId !== requestedProviderId) {
+		warnProviderIdAlias(requestedProviderId, providerId);
+	}
 
 	const provider = models.getProvider(providerId);
 	if (!provider) {
