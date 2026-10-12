@@ -1,10 +1,19 @@
 # Changelog
 
-## Unreleased
+## 2.3.0 - 2026-10-12
+
+### New Features
+
+- **Updated `@earendil-works/pi-ai` and `@earendil-works/pi-agent-core` to 1.1.0.** New models resolve with no configuration, including Claude Sonnet 5.5 (`anthropic/claude-sonnet-5-5`), Claude Haiku 5.5 (`anthropic/claude-haiku-5-5`), and GPT-6.1 Sol (`openai/gpt-6.1-sol`). **Azure users must update:** Pi renamed the Azure provider from `azure-openai-responses` to `azure`, so change `azure-openai-responses/...` model specifiers and `providers` config entries to `azure`. The `AZURE_OPENAI_*` environment variables are unchanged. Tool and turn `durationMs` values now come from Pi's monotonic timing, so a tool's duration covers only its execution, not Flue's hooks or result storage.
 
 ### Fixes & Other Changes
 
-- **`useAgentFinish` callbacks once again see state written during the response.** Since 2.2.0, finish hooks ran against the agent render from before the response's final turn, so a durable guard set by a finish callback — the documented `usePersistentState` pattern for appending a reminder once — was never observed: the callback re-appended on every cycle until the response failed at the runaway-loop ceiling. The agent now re-renders before each finish-hook cycle.
+- **`useAgentFinish` callbacks once again see state written during the response.** Since 2.2.0, finish hooks ran against the agent render from before the response's final turn, so a durable guard set by a finish callback — the documented `usePersistentState` pattern for appending a reminder once — was never observed: the callback re-appended on every cycle until the response failed at the runaway-loop ceiling. The agent now re-renders before each finish-hook cycle (#818).
+- **`read_skill_resource` accepts a packaged skill path without its leading `/`.** Models often echo the advertised `/.flue/packaged-skills/...` path without the slash, and the read failed as not found (#781).
+- **The local sandbox SIGKILLs a command's whole process group after the grace period, even when the shell exits first.** On an `exec()` timeout or abort, the pending SIGKILL was cancelled once the shell's pipes closed, so a process that ignored SIGTERM and held none of the shell's output kept running after `exec()` returned (#809).
+- **Execution interceptors see `agentName` on model, tool, and shell steps, not only on the outer `agent` operation.** The root harness's execution context carried only the instance id, so an interceptor that branches per agent took its default branch on every step (#785).
+- **`flue init --target cloudflare` scaffolds the Workers AI binding that keyless `cloudflare/...` models need, commented out in `wrangler.jsonc`.** The generated agent suggested switching to a keyless Cloudflare model but nothing declared `env.AI`; it now points at the binding to uncomment. The binding stays off by default because it reaches your Cloudflare account even in local dev (#739).
+- **The E2B sandbox blueprint returns a non-zero exit from `exec()` instead of throwing.** E2B's `commands.run()` throws `CommandExitError` on a non-zero exit, so a failing command rejected with no command or stderr instead of resolving with its `exitCode`. The blueprint is bumped to version 2; run `flue update sandbox e2b` to update an existing integration (#805).
 
 ## 2.2.2 - 2026-09-28
 
