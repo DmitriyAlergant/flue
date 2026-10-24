@@ -1067,6 +1067,7 @@ export class Session implements FlueSession, AgentSubmissionSession {
 	private async narrateEnvironmentSnapshot(current: ResourceSnapshot): Promise<void> {
 		if (!this.resourceRuntime || !this.activeSubmissionId) return;
 		const previous = this.lastNarratedResources;
+		const known = previous ?? this.resourceRuntime.initial.snapshot;
 		const parentId = await this.conversationWriter.getConversationLeaf(this.conversationId);
 		const records: ConversationRecord[] = [];
 		// A swap at the very first boundary beats the lazy first-contact
@@ -1099,6 +1100,8 @@ export class Session implements FlueSession, AgentSubmissionSession {
 						name: subagent.name,
 						description: subagent.description,
 					})),
+					hadSkills: known.skills.length > 0,
+					hadSubagents: known.subagents.length > 0,
 				}),
 			},
 			{ advance: false },
